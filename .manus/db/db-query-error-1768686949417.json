@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE `users` ADD COLUMN `username` varchar(64) UNIQUE AFTER `role`;\nALTER TABLE `users` ADD COLUMN `password` varchar(256) AFTER `username`;\nALTER TABLE `users` ADD COLUMN `brandName` varchar(128) AFTER `password`;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user HWKy4c1DK6CDVB2.root --database XEcjb7B6Y7pMRNU5czVNp3 --execute ALTER TABLE `users` ADD COLUMN `username` varchar(64) UNIQUE AFTER `role`;\nALTER TABLE `users` ADD COLUMN `password` varchar(256) AFTER `username`;\nALTER TABLE `users` ADD COLUMN `brandName` varchar(128) AFTER `password`;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 8200 (HY000) at line 1: unsupported add column 'username' constraint UNIQUE KEY when altering 'XEcjb7B6Y7pMRNU5czVNp3.users'"
+  ]
+}

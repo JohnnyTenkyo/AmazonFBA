@@ -1,0 +1,1 @@
+ALTER TABLE `factory_inventory` ADD `pendingOrders` int DEFAULT 0;
