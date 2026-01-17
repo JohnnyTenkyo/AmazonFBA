@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `factory_inventory` ADD COLUMN `pendingOrders` int DEFAULT 0 AFTER `quantity`;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user HWKy4c1DK6CDVB2.root --database XEcjb7B6Y7pMRNU5czVNp3 --execute ALTER TABLE `factory_inventory` ADD COLUMN `pendingOrders` int DEFAULT 0 AFTER `quantity`;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2084
+}

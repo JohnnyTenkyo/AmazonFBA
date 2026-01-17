@@ -71,3 +71,12 @@
 - [x] 修复所有表的 schema（执行 SQL 迁移文件创建所有 12 个表）
 - [x] 测试 SKU 批量导入（所有测试通过）
 - [x] 测试其他模块的批量导入（数据库表已成功创建）
+
+
+## 工厂备货和春节配置 Bug 修复
+
+- [x] 诊断 factory_inventory 表缺失的列（pendingOrders）
+- [x] 诊断 spring_festival_config 表缺失的列
+- [x] 修复所有表的列定义（已添加 pendingOrders 列）
+- [x] 测试工厂备货导入功能（所有测试通过）
+- [x] 测试春节配置功能（数据库表存在）
