@@ -652,7 +652,8 @@ export const appRouter = router({
     get: publicProcedure
       .input(z.object({ brandName: z.string(), year: z.number() }))
       .query(async ({ input }) => {
-        return db.getSpringFestivalConfig(input.brandName, input.year);
+        const config = await db.getSpringFestivalConfig(input.brandName, input.year);
+        return config || null;
       }),
     
     update: publicProcedure
