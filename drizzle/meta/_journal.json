@@ -1,5 +1,27 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1768555657330,
+      "tag": "0000_whole_madame_web",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1768555814938,
+      "tag": "0001_optimal_jetstream",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1768683842781,
+      "tag": "0002_motionless_amazoness",
+      "breakpoints": true
+    }
+  ]
 }
