@@ -37,6 +37,7 @@ export default function Shipments() {
   const [arrivalDate, setArrivalDate] = useState('');
   const [editExpectedId, setEditExpectedId] = useState<number | null>(null);
   const [newExpectedDate, setNewExpectedDate] = useState('');
+  const [isArrivedExpanded, setIsArrivedExpanded] = useState(false);
 
   // 表单状态 - 移除category字段，通过SKU自动匹配
   const [formData, setFormData] = useState({
@@ -502,7 +503,8 @@ export default function Shipments() {
                   <p className="text-center py-4 text-muted-foreground">暂无标准件货件</p>
                 ) : (
                   <div className="space-y-2">
-                    {filteredShipments.filter(s => s.category === 'standard').map(shipment => (
+                    {/* 未到达的标准件货件 */}
+                    {filteredShipments.filter(s => s.category === 'standard' && !['arrived', 'early', 'delayed'].includes(s.status)).map(shipment => (
                       <ShipmentCard
                         key={shipment.id}
                         shipment={shipment}
@@ -520,6 +522,40 @@ export default function Shipments() {
                         getStatusBadge={getStatusBadge}
                       />
                     ))}
+                    
+                    {/* 已到达的标准件货件 - 折叠板块 */}
+                    {filteredShipments.filter(s => s.category === 'standard' && ['arrived', 'early', 'delayed'].includes(s.status)).length > 0 && (
+                      <Collapsible open={isArrivedExpanded} onOpenChange={setIsArrivedExpanded}>
+                        <div className="border rounded-lg p-4 bg-gray-50">
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="w-full justify-start p-0 h-auto hover:bg-transparent">
+                              <ChevronRight className={`w-4 h-4 mr-2 transition-transform ${isArrivedExpanded ? 'rotate-90' : ''}`} />
+                              <span className="font-medium">已到达货件 ({filteredShipments.filter(s => s.category === 'standard' && ['arrived', 'early', 'delayed'].includes(s.status)).length}个)</span>
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-4 space-y-2">
+                            {filteredShipments.filter(s => s.category === 'standard' && ['arrived', 'early', 'delayed'].includes(s.status)).map(shipment => (
+                              <ShipmentCard
+                                key={shipment.id}
+                                shipment={shipment}
+                                onCopy={copyToClipboard}
+                                onMarkArrival={(id) => {
+                                  setMarkArrivalId(id);
+                                  setArrivalDate(new Date().toISOString().split('T')[0]);
+                                }}
+                                onEditExpected={(id, currentDate) => {
+                                  setEditExpectedId(id);
+                                  setNewExpectedDate(formatDate(currentDate));
+                                }}
+                                onUndoArrival={(id) => undoArrivalMutation.mutate({ id })}
+                                onDelete={(id) => deleteMutation.mutate({ id })}
+                                getStatusBadge={getStatusBadge}
+                              />
+                            ))}
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -541,7 +577,8 @@ export default function Shipments() {
                   <p className="text-center py-4 text-muted-foreground">暂无大件货件</p>
                 ) : (
                   <div className="space-y-2">
-                    {filteredShipments.filter(s => s.category === 'oversized').map(shipment => (
+                    {/* 未到达的大件货件 */}
+                    {filteredShipments.filter(s => s.category === 'oversized' && !['arrived', 'early', 'delayed'].includes(s.status)).map(shipment => (
                       <ShipmentCard
                         key={shipment.id}
                         shipment={shipment}
@@ -559,6 +596,40 @@ export default function Shipments() {
                         getStatusBadge={getStatusBadge}
                       />
                     ))}
+                    
+                    {/* 已到达的大件货件 - 折叠板块 */}
+                    {filteredShipments.filter(s => s.category === 'oversized' && ['arrived', 'early', 'delayed'].includes(s.status)).length > 0 && (
+                      <Collapsible open={isArrivedExpanded} onOpenChange={setIsArrivedExpanded}>
+                        <div className="border rounded-lg p-4 bg-gray-50">
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="w-full justify-start p-0 h-auto hover:bg-transparent">
+                              <ChevronRight className={`w-4 h-4 mr-2 transition-transform ${isArrivedExpanded ? 'rotate-90' : ''}`} />
+                              <span className="font-medium">已到达货件 ({filteredShipments.filter(s => s.category === 'oversized' && ['arrived', 'early', 'delayed'].includes(s.status)).length}个)</span>
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-4 space-y-2">
+                            {filteredShipments.filter(s => s.category === 'oversized' && ['arrived', 'early', 'delayed'].includes(s.status)).map(shipment => (
+                              <ShipmentCard
+                                key={shipment.id}
+                                shipment={shipment}
+                                onCopy={copyToClipboard}
+                                onMarkArrival={(id) => {
+                                  setMarkArrivalId(id);
+                                  setArrivalDate(new Date().toISOString().split('T')[0]);
+                                }}
+                                onEditExpected={(id, currentDate) => {
+                                  setEditExpectedId(id);
+                                  setNewExpectedDate(formatDate(currentDate));
+                                }}
+                                onUndoArrival={(id) => undoArrivalMutation.mutate({ id })}
+                                onDelete={(id) => deleteMutation.mutate({ id })}
+                                getStatusBadge={getStatusBadge}
+                              />
+                            ))}
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    )}
                   </div>
                 )}
               </CardContent>
