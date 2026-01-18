@@ -191,10 +191,10 @@ export default function ShippingPlan() {
       const categorySkus = skus?.filter(s => s.category === currentCategory && !s.isDiscontinued) || [];
       
       // 获取已保存的数据
-      const savedShipments = savedActualShipments?.filter((s: any) => {
+      const savedShipments = (savedActualShipments || []).filter((s: any) => {
         const sku = skus?.find(sk => sk.id === s.skuId);
         return sku && sku.category === currentCategory;
-      }) || [];
+      });
       
       // 保存每个SKU在每列的发货数量
       const savePromises = [];
