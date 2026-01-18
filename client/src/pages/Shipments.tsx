@@ -528,6 +528,7 @@ export default function Shipments() {
                         onUndoArrival={(id) => undoArrivalMutation.mutate({ id })}
                         onDelete={(id) => deleteMutation.mutate({ id })}
                         getStatusBadge={getStatusBadge}
+                        modifiedFlags={modifiedFlags}
                       />
                     ))}
                     
@@ -602,6 +603,7 @@ export default function Shipments() {
                         onUndoArrival={(id) => undoArrivalMutation.mutate({ id })}
                         onDelete={(id) => deleteMutation.mutate({ id })}
                         getStatusBadge={getStatusBadge}
+                        modifiedFlags={modifiedFlags}
                       />
                     ))}
                     
@@ -728,7 +730,7 @@ export default function Shipments() {
 }
 
 // 货件卡片组件
-function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoArrival, onDelete, getStatusBadge }: {
+function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoArrival, onDelete, getStatusBadge, modifiedFlags }: {
   shipment: any;
   onCopy: (text: string) => void;
   onMarkArrival: (id: number) => void;
@@ -736,6 +738,7 @@ function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoA
   onUndoArrival: (id: number) => void;
   onDelete: (id: number) => void;
   getStatusBadge: (status: string) => React.ReactNode;
+  modifiedFlags: Record<number, string>;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   
