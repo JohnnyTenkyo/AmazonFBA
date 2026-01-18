@@ -846,7 +846,39 @@ export const appRouter = router({
         };
       }),
     
-    // 库存预警列表
+    
+    // 延迟货件
+    delayedShipments: publicProcedure
+      .input(z.object({ brandName: z.string() }))
+      .query(async ({ input }) => {
+        const shipments = await db.getShipmentsByBrand(input.brandName);
+        const now = new Date();
+        
+        // 查找超期未到达的货件（预计到达日期已过，但状态仍为 shipping）
+        const delayedShipments = shipments.filter((s: any) => {
+          const expectedDate = new Date(s.expectedArrivalDate);
+          return s.status === 'shipping' && expectedDate < now;
+        });
+        
+        // 获取货件明细
+        const result = [];
+        for (const shipment of delayedShipments) {
+          const items = await db.getShipmentItems(shipment.id);
+          const totalQuantity = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+          result.push({
+            id: shipment.id,
+            trackingNumber: shipment.trackingNumber,
+            category: shipment.category,
+            totalQuantity,
+            expectedArrivalDate: shipment.expectedArrivalDate,
+            daysOverdue: Math.floor((now.getTime() - new Date(shipment.expectedArrivalDate).getTime()) / (1000 * 60 * 60 * 24)),
+          });
+        }
+        
+        return result;
+      }),
+
+        // 库存预警列表
     alerts: publicProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {

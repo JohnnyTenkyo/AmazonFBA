@@ -22,6 +22,11 @@ export default function Dashboard() {
     { enabled: !!brandName }
   );
 
+  const { data: delayedShipments } = trpc.dashboard.delayedShipments.useQuery(
+    { brandName },
+    { enabled: !!brandName }
+  );
+
   const { data: springConfig } = trpc.springFestival.get.useQuery(
     { brandName, year: new Date().getFullYear() },
     { enabled: !!brandName }
@@ -174,6 +179,52 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 延迟货件预警 */}
+      {delayedShipments && delayedShipments.length > 0 && (
+        <Card className="card-hover border-red-300 bg-red-50/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              延迟货件预警 ({delayedShipments.length}个)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {delayedShipments.map((shipment: any) => (
+                <div key={shipment.id} className="flex items-center justify-between p-3 bg-white rounded border border-red-200">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-red-600">{shipment.trackingNumber}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(shipment.trackingNumber);
+                          alert('已复制到剪贴板');
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        📋 复制
+                      </button>
+                      <Badge variant="outline" className="text-xs">
+                        {shipment.category === 'standard' ? '标准件' : '大件'}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {shipment.totalQuantity}件
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-red-600 mt-1">
+                      延迟 {shipment.daysOverdue} 天 | 预计到达: {new Date(shipment.expectedArrivalDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link href="/shipments" className="text-sm text-red-600 hover:underline mt-4 inline-block font-medium">
+              查看所有货件 →
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 在途货件 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

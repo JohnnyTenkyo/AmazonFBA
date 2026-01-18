@@ -788,6 +788,11 @@ function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoA
                 >
                   修改
                 </Button>
+                {shipment.expectedArrivalDateModified && (
+                  <Badge className={shipment.expectedArrivalDateModified === 'early' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}>
+                    {shipment.expectedArrivalDateModified === 'early' ? '预计提早到达' : '预计延迟到达'}
+                  </Badge>
+                )}
               </p>
               {shipment.actualArrivalDate && <p className="text-sm text-green-600 font-medium mt-1">实际到货: {formatDate(shipment.actualArrivalDate)}</p>}
             </div>

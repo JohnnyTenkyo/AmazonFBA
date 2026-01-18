@@ -22,6 +22,29 @@ interface ActualShipmentColumn {
   category: 'standard' | 'oversized'; // 添加类别字段
 }
 
+
+// 公式说明提示组件
+function FormulaTooltip({ formula }: { formula: string }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  return (
+    <div className="relative inline-block">
+      <button
+        className="ml-1 text-xs text-gray-400 hover:text-gray-600 font-bold"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onClick={() => setShowTooltip(!showTooltip)}
+      >
+        ⓘ
+      </button>
+      {showTooltip && (
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+          {formula}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ShippingPlan() {
   const { brandName } = useLocalAuth();
   const utils = trpc.useUtils();
