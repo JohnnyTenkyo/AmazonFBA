@@ -252,6 +252,30 @@ export async function deleteSku(id: number) {
   await db.delete(skus).where(eq(skus.id, id));
 }
 
+export async function batchUpdateSkus(ids: number[], updates: { dailySales?: string | number; isDiscontinued?: boolean }) {
+  if (useLocal()) {
+    ids.forEach(id => {
+      localDb.updateSku(id, updates as any);
+    });
+    return;
+  }
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const updateData: any = {};
+  if (updates.dailySales !== undefined) {
+    updateData.dailySales = updates.dailySales;
+  }
+  if (updates.isDiscontinued !== undefined) {
+    updateData.isDiscontinued = updates.isDiscontinued;
+  }
+  updateData.updatedAt = new Date();
+  
+  if (ids.length === 0) return;
+  
+  await db.update(skus).set(updateData).where(inArray(skus.id, ids));
+}
+
 export async function clearAllSkus(brandName: string) {
   if (useLocal()) {
     localDb.clearAllSkus(brandName);

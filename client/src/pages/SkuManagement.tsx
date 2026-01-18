@@ -13,9 +13,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Plus, Upload, Download, Trash2, Edit, Search, Package, Truck, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Upload, Download, Trash2, Edit, Search, Package, Truck, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import CountdownBanner from '@/components/CountdownBanner';
+import BatchUpdateSkuDialog from '@/components/BatchUpdateSkuDialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function SkuManagement() {
   const { brandName } = useLocalAuth();
@@ -26,6 +28,8 @@ export default function SkuManagement() {
   const [showDiscontinued, setShowDiscontinued] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingSku, setEditingSku] = useState<any>(null);
+  const [selectedSkuIds, setSelectedSkuIds] = useState<Set<number>>(new Set());
+  const [isBatchUpdateDialogOpen, setIsBatchUpdateDialogOpen] = useState(false);
   
   // 排序状态
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -274,6 +278,19 @@ export default function SkuManagement() {
       <table className="data-table">
         <thead>
           <tr>
+            <th className="w-10">
+              <Checkbox
+                checked={selectedSkuIds.size === sortedSkus.length && sortedSkus.length > 0}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    const newSelected = new Set(sortedSkus.map(s => s.id));
+                    setSelectedSkuIds(newSelected);
+                  } else {
+                    setSelectedSkuIds(new Set());
+                  }
+                }}
+              />
+            </th>
             <th>
               <button onClick={() => handleSort('sku')} className="flex items-center gap-1 hover:text-primary">
                 SKU
@@ -337,6 +354,20 @@ export default function SkuManagement() {
           ) : (
             sortedSkus.map(sku => (
               <tr key={sku.id}>
+                <td className="w-10">
+                  <Checkbox
+                    checked={selectedSkuIds.has(sku.id)}
+                    onCheckedChange={(checked) => {
+                      const newSelected = new Set(selectedSkuIds);
+                      if (checked) {
+                        newSelected.add(sku.id);
+                      } else {
+                        newSelected.delete(sku.id);
+                      }
+                      setSelectedSkuIds(newSelected);
+                    }}
+                  />
+                </td>
                 <td className="font-medium">{sku.sku}</td>
                 <td>{sku.dailySales || '-'}</td>
                 <td>{sku.fbaStock || 0}</td>
@@ -510,6 +541,17 @@ export default function SkuManagement() {
         </div>
 
         <div className="flex items-center gap-2">
+          {selectedSkuIds.size > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsBatchUpdateDialogOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <CheckSquare className="w-4 h-4 mr-1" />
+              批量修改 ({selectedSkuIds.size})
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
             <Download className="w-4 h-4 mr-1" />
             下载模板
@@ -642,6 +684,16 @@ export default function SkuManagement() {
           {renderSkuTable()}
         </CardContent>
       </Card>
+
+      <BatchUpdateSkuDialog
+        isOpen={isBatchUpdateDialogOpen}
+        onClose={() => setIsBatchUpdateDialogOpen(false)}
+        selectedIds={Array.from(selectedSkuIds)}
+        onSuccess={() => {
+          setSelectedSkuIds(new Set());
+          utils.sku.list.invalidate();
+        }}
+      />
     </div>
   );
 }

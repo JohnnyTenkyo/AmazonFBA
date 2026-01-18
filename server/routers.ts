@@ -177,6 +177,19 @@ export const appRouter = router({
         await db.batchUpsertSkus(items);
         return { success: true, count: items.length };
       }),
+    
+    batchUpdate: publicProcedure
+      .input(z.object({
+        ids: z.array(z.number()),
+        updates: z.object({
+          dailySales: z.string().optional(),
+          isDiscontinued: z.boolean().optional(),
+        })
+      }))
+      .mutation(async ({ input }) => {
+        await db.batchUpdateSkus(input.ids, input.updates);
+        return { success: true, count: input.ids.length };
+      }),
   }),
 
   // FBA库存同步
