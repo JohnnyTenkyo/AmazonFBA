@@ -38,6 +38,7 @@ export default function Shipments() {
   const [editExpectedId, setEditExpectedId] = useState<number | null>(null);
   const [newExpectedDate, setNewExpectedDate] = useState('');
   const [isArrivedExpanded, setIsArrivedExpanded] = useState(false);
+  const [modifiedFlags, setModifiedFlags] = useState<Record<number, string>>({});
 
   // 表单状态 - 移除category字段，通过SKU自动匹配
   const [formData, setFormData] = useState({
@@ -104,8 +105,6 @@ export default function Shipments() {
     },
     onError: (error) => toast.error(error.message),
   });
-
-  const [modifiedFlags, setModifiedFlags] = useState<Record<number, string>>({});
 
   const updateExpectedMutation = trpc.shipment.updateExpectedDate.useMutation({
     onSuccess: (data) => {
