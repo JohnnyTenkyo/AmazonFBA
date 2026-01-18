@@ -46,6 +46,10 @@ export default function ShippingPlan() {
   
   // 排序状态
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  
+  // 日销修改对话框状态
+  const [isDailySalesDialogOpen, setIsDailySalesDialogOpen] = useState(false);
+  const [dailySalesEdits, setDailySalesEdits] = useState<Record<number, string>>({});
 
   const { data: skus, isLoading } = trpc.sku.list.useQuery(
     { brandName },
@@ -401,6 +405,25 @@ export default function ShippingPlan() {
     return stockoutEvent ? stockoutEvent.date : null;
   };
 
+  // 根据缺货时间计算颜色
+  const getStockoutDateColor = (dateStr: string | null) => {
+    if (!dateStr) return 'text-green-600';
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const stockoutDate = new Date(dateStr);
+    stockoutDate.setHours(0, 0, 0, 0);
+    
+    const daysUntilStockout = Math.ceil((stockoutDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // 一个月内（30天）：红色
+    if (daysUntilStockout <= 30) return 'text-red-600';
+    // 1-2个月（30-60天）：蓝色
+    if (daysUntilStockout <= 60) return 'text-blue-600';
+    // 2个月以上：绿色
+    return 'text-green-600';
+  };
+
 
     // 计算发货计划数据
   const calculatePlanData = (sku: any) => {
@@ -710,6 +733,27 @@ export default function ShippingPlan() {
     toast.success('已复制到剪贴板');
   };
 
+  // 处理日销修改保存
+  const handleSaveDailySales = async () => {
+    try {
+      const updatePromises = Object.entries(dailySalesEdits).map(([skuId, value]) => {
+        if (value && value.trim()) {
+          return updateSkuMutation.mutateAsync({
+            id: parseInt(skuId),
+            dailySales: value,
+          });
+        }
+      }).filter(Boolean);
+      
+      await Promise.all(updatePromises);
+      setDailySalesEdits({});
+      setIsDailySalesDialogOpen(false);
+      toast.success('日销量已更新');
+    } catch (error) {
+      toast.error('更新失败');
+    }
+  };
+
   const renderTable = (data: any[], category: 'standard' | 'oversized') => {
     const categoryColumns = actualColumns.filter(c => c.category === category);
     const totals = calculateTotals(data);
@@ -728,12 +772,22 @@ export default function ShippingPlan() {
                 </button>
               </th>
               <th>
-                <button onClick={() => handleSort('dailySales')} className="flex items-center gap-1 hover:text-primary">
-                  日销量
-                  {sortConfig?.key === 'dailySales' ? (
-                    sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                  ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
-                </button>
+                <div className="flex items-center justify-between gap-1">
+                  <button onClick={() => handleSort('dailySales')} className="flex items-center gap-1 hover:text-primary">
+                    日销量
+                    {sortConfig?.key === 'dailySales' ? (
+                      sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 px-2 text-xs"
+                    onClick={() => setIsDailySalesDialogOpen(true)}
+                  >
+                    编辑
+                  </Button>
+                </div>
               </th>
               <th>
                 <button onClick={() => handleSort('fbaStock')} className="flex items-center gap-1 hover:text-primary">
@@ -751,7 +805,12 @@ export default function ShippingPlan() {
                   ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
                 </button>
               </th>
-              <th>缺货天数</th>
+              <th>
+                <div className="flex items-center gap-1">
+                  <span>缺货天数</span>
+                  <span className="text-xs text-muted-foreground" title="计算公式：当库存天数 < 30天时，计算从库存用完到第一批在途货到达的天数">ⓘ</span>
+                </div>
+              </th>
               <th>
                 <button onClick={() => handleSort('stockoutDate')} className="flex items-center gap-1 hover:text-primary">
                   缺货预测
@@ -836,22 +895,6 @@ export default function ShippingPlan() {
                       <td>
                         <div className="flex items-center gap-2">
                           <span>{plan.dailySales}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 px-2 text-xs"
-                            onClick={() => {
-                              const newValue = prompt('修改日销量:', plan.dailySales.toString());
-                              if (newValue !== null && newValue.trim()) {
-                                updateSkuMutation.mutate({
-                                  id: sku.id,
-                                  dailySales: newValue,
-                                });
-                              }
-                            }}
-                          >
-                            编辑
-                          </Button>
                         </div>
                       </td>
                       <td>{plan.fbaStock}</td>
@@ -892,7 +935,7 @@ export default function ShippingPlan() {
                         {(() => {
                           const stockoutDays = calculateStockoutDays(sku);
                           return stockoutDays > 0 ? (
-                            <span className="text-red-600 font-medium">{stockoutDays}天</span>
+                            <span className="text-red-600 font-medium">{Math.ceil(stockoutDays)}天</span>
                           ) : (
                             <span className="text-green-600">充足</span>
                           );
@@ -907,8 +950,9 @@ export default function ShippingPlan() {
                             <CollapsibleTrigger className="flex items-center gap-1 cursor-pointer">
                               {(() => {
                                 const nextStockout = getNextStockoutDate(sku);
+                                const colorClass = getStockoutDateColor(nextStockout);
                                 return nextStockout ? (
-                                  <span className="text-red-600">最近缺货: {nextStockout}</span>
+                                  <span className={colorClass}>最近缺货: {nextStockout}</span>
                                 ) : (
                                   <span className="text-green-600">无缺货风险</span>
                                 );
@@ -1109,6 +1153,41 @@ export default function ShippingPlan() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddColumnOpen(false)}>取消</Button>
             <Button onClick={handleAddColumn}>添加</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 日销修改对话框 */}
+      <Dialog open={isDailySalesDialogOpen} onOpenChange={setIsDailySalesDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>批量修改日销量</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            {(() => {
+              const categorySkus = skus?.filter(s => s.category === currentCategory) || [];
+              return categorySkus.map(sku => (
+                <div key={sku.id} className="flex items-center gap-2">
+                  <Label className="w-20">{sku.sku}</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={dailySalesEdits[sku.id] ?? sku.dailySales ?? ''}
+                    onChange={(e) => setDailySalesEdits({ ...dailySalesEdits, [sku.id]: e.target.value })}
+                    className="flex-1"
+                    placeholder="输入日销量"
+                  />
+                </div>
+              ));
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDailySalesDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSaveDailySales}>
+              保存
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -418,20 +418,26 @@ export default function FactoryPlan() {
               </button>
             </th>
             <th>
-              <button onClick={() => handleSort('monthlyNeed')} className="flex items-center gap-1 hover:text-primary">
-                月度需求
-                {sortConfig?.key === 'monthlyNeed' ? (
-                  sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => handleSort('monthlyNeed')} className="flex items-center gap-1 hover:text-primary">
+                  月度需求
+                  {sortConfig?.key === 'monthlyNeed' ? (
+                    sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                  ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                </button>
+                <span className="text-xs text-muted-foreground" title="计算公式：日销量 × 月天数（考虑春节假期）">ⓘ</span>
+              </div>
             </th>
             <th>
-              <button onClick={() => handleSort('suggestedOrder')} className="flex items-center gap-1 hover:text-primary">
-                建议备货
-                {sortConfig?.key === 'suggestedOrder' ? (
-                  sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => handleSort('suggestedOrder')} className="flex items-center gap-1 hover:text-primary">
+                  建议备货
+                  {sortConfig?.key === 'suggestedOrder' ? (
+                    sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                  ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                </button>
+                <span className="text-xs text-muted-foreground" title="计算公式：月度需求 - (FBA库存 + 在途库存 + 工厂成品库存 - 工厂已下单)">ⓘ</span>
+              </div>
             </th>
             <th>
               <button onClick={() => handleSort('totalActual')} className="flex items-center gap-1 hover:text-primary">
@@ -442,12 +448,15 @@ export default function FactoryPlan() {
               </button>
             </th>
             <th>
-              <button onClick={() => handleSort('difference')} className="flex items-center gap-1 hover:text-primary">
-                差异
-                {sortConfig?.key === 'difference' ? (
-                  sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => handleSort('difference')} className="flex items-center gap-1 hover:text-primary">
+                  差异
+                  {sortConfig?.key === 'difference' ? (
+                    sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                  ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                </button>
+                <span className="text-xs text-muted-foreground" title="计算公式：实际发货 - 建议备货">ⓘ</span>
+              </div>
             </th>
             <th>
               <button onClick={() => handleSort('additionalOrder')} className="flex items-center gap-1 hover:text-primary">
