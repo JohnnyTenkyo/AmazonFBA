@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE promotions ADD COLUMN lastYearStartDate VARCHAR(255);\nALTER TABLE promotions ADD COLUMN lastYearEndDate VARCHAR(255);\nALTER TABLE promotions ADD COLUMN thisYearStartDate VARCHAR(255);\nALTER TABLE promotions ADD COLUMN thisYearEndDate VARCHAR(255);\nALTER TABLE promotions ADD COLUMN isActive BOOLEAN DEFAULT true;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user HWKy4c1DK6CDVB2.root --database XEcjb7B6Y7pMRNU5czVNp3 --execute ALTER TABLE promotions ADD COLUMN lastYearStartDate VARCHAR(255);\nALTER TABLE promotions ADD COLUMN lastYearEndDate VARCHAR(255);\nALTER TABLE promotions ADD COLUMN thisYearStartDate VARCHAR(255);\nALTER TABLE promotions ADD COLUMN thisYearEndDate VARCHAR(255);\nALTER TABLE promotions ADD COLUMN isActive BOOLEAN DEFAULT true;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1060 (42S21) at line 1: Duplicate column name 'lastYearStartDate'"
+  ]
+}
