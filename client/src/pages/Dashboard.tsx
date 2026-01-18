@@ -176,18 +176,37 @@ export default function Dashboard() {
       </div>
 
       {/* 在途货件 */}
-      <Card className="card-hover">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Truck className="w-5 h-5 text-blue-600" />
-            <span className="font-semibold">在途货件</span>
-          </div>
-          <p className="text-3xl font-bold">{summary?.shippingShipments || 0}</p>
-          <Link href="/shipments" className="text-sm text-primary hover:underline mt-2 inline-block">
-            查看详情 →
-          </Link>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="card-hover">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Truck className="w-5 h-5 text-blue-600" />
+              <span className="font-semibold">在途货件</span>
+            </div>
+            <p className="text-3xl font-bold">{summary?.shippingShipments || 0}</p>
+            <Link href="/shipments" className="text-sm text-primary hover:underline mt-2 inline-block">
+              查看详情 →
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* 即将到达货件提醒 */}
+        {summary?.arrivingSoonShipments && summary.arrivingSoonShipments > 0 && (
+          <Card className="card-hover border-orange-300 bg-orange-50/50">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-5 h-5 text-orange-600" />
+                <span className="font-semibold text-orange-700">即将到达货件</span>
+              </div>
+              <p className="text-3xl font-bold text-orange-600">{summary.arrivingSoonShipments}</p>
+              <p className="text-xs text-orange-600 mt-2">10天内即将到达</p>
+              <Link href="/shipments" className="text-sm text-orange-600 hover:underline mt-2 inline-block font-medium">
+                立即查看 →
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* 预警列表 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -826,11 +826,20 @@ export const appRouter = router({
           }
         }
         
+        // 计算即将到达货件（10天内）
+        const now = new Date();
+        const tenDaysLater = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+        const arrivingSoonShipments = shippingShipments.filter((s: any) => {
+          const expectedDate = new Date(s.expectedArrivalDate);
+          return expectedDate >= now && expectedDate <= tenDaysLater;
+        });
+
         return {
           totalSkus: allSkus.length,
           activeSkus: activeSkus.length,
           discontinuedSkus: allSkus.length - activeSkus.length,
           shippingShipments: shippingShipments.length,
+          arrivingSoonShipments: arrivingSoonShipments.length,
           urgentCount,
           warningCount,
           sufficientCount,
