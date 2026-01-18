@@ -522,13 +522,24 @@ export const appRouter = router({
           throw new TRPCError({ code: 'NOT_FOUND', message: '货件不存在' });
         }
         
+        // 比较原始预计到达日期和新日期
+        const originalDate = new Date(shipment.expectedArrivalDate as any);
+        const newDate = new Date(input.expectedArrivalDate);
+        let modifiedFlag = null;
+        
+        if (newDate < originalDate) {
+          modifiedFlag = 'early'; // 提早到达
+        } else if (newDate > originalDate) {
+          modifiedFlag = 'delayed'; // 延迟到达
+        }
+        
         // 只更新预计到货日期，不改变状态
         // 状态只在确认到达时根据实际到达日期判断
         await db.updateShipment(input.id, {
           expectedArrivalDate: input.expectedArrivalDate,
         } as any);
         
-        return { success: true, status: shipment.status };
+        return { success: true, status: shipment.status, modifiedFlag };
       }),
     
     // 撤销到达状态

@@ -1115,11 +1115,31 @@ export default function ShippingPlan() {
                 导出Excel
               </Button>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-4">
+              {/* 公式说明 */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-semibold text-sm text-blue-900 mb-2">计算公式说明：</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-blue-800">
+                  <div>
+                    <span className="font-medium">缺货天数：</span>
+                    <span>(FBA库存 - 预计发货数) / 日销</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">缺货时间：</span>
+                    <span>按缺货天数计算的日期</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">计划发货数量：</span>
+                    <span>日销 × (缺货天数 + 备货天数)</span>
+                  </div>
+                </div>
+              </div>
               {isLoading ? (
                 <p className="text-center py-8 text-muted-foreground">加载中...</p>
               ) : (
-                renderTable(currentCategory === 'standard' ? sortedData : filteredSkus.standard, 'standard')
+                <div className="overflow-x-auto">
+                  {renderTable(currentCategory === 'standard' ? sortedData : filteredSkus.standard, 'standard')}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1134,11 +1154,31 @@ export default function ShippingPlan() {
                 导出Excel
               </Button>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-4">
+              {/* 公式说明 */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-semibold text-sm text-blue-900 mb-2">计算公式说明：</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-blue-800">
+                  <div>
+                    <span className="font-medium">缺货天数：</span>
+                    <span>(FBA库存 - 预计发货数) / 日销</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">缺货时间：</span>
+                    <span>按缺货天数计算的日期</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">计划发货数量：</span>
+                    <span>日销 × (缺货天数 + 备货天数)</span>
+                  </div>
+                </div>
+              </div>
               {isLoading ? (
                 <p className="text-center py-8 text-muted-foreground">加载中...</p>
               ) : (
-                renderTable(currentCategory === 'oversized' ? sortedData : filteredSkus.oversized, 'oversized')
+                <div className="overflow-x-auto">
+                  {renderTable(currentCategory === 'oversized' ? sortedData : filteredSkus.oversized, 'oversized')}
+                </div>
               )}
             </CardContent>
           </Card>

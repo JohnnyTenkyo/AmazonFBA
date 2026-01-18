@@ -105,9 +105,18 @@ export default function Shipments() {
     onError: (error) => toast.error(error.message),
   });
 
+  const [modifiedFlags, setModifiedFlags] = useState<Record<number, string>>({});
+
   const updateExpectedMutation = trpc.shipment.updateExpectedDate.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('预计到货日期已更新');
+      // 保存修改标记
+      if (editExpectedId && data.modifiedFlag) {
+        setModifiedFlags(prev => ({
+          ...prev,
+          [editExpectedId]: data.modifiedFlag
+        }));
+      }
       setEditExpectedId(null);
       setNewExpectedDate('');
       utils.shipment.list.invalidate();
@@ -788,9 +797,9 @@ function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoA
                 >
                   修改
                 </Button>
-                {shipment.expectedArrivalDateModified && (
-                  <Badge className={shipment.expectedArrivalDateModified === 'early' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}>
-                    {shipment.expectedArrivalDateModified === 'early' ? '预计提早到达' : '预计延迟到达'}
+                {modifiedFlags[shipment.id] && (
+                  <Badge className={modifiedFlags[shipment.id] === 'early' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}>
+                    {modifiedFlags[shipment.id] === 'early' ? '预计提早到达' : '预计延迟到达'}
                   </Badge>
                 )}
               </p>
