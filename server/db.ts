@@ -883,6 +883,10 @@ export async function createActualShipment(data: InsertActualShipment) {
 }
 
 export async function deleteActualShipment(id: number) {
+  if (useLocal()) {
+    // 本地数据库不支持删除，直接返回
+    return;
+  }
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
@@ -926,14 +930,19 @@ export async function upsertFactoryInventory(data: InsertFactoryInventory) {
     .limit(1);
   
   if (existing.length > 0) {
-    await db.update(factoryInventory)
-      .set({
-        quantity: data.quantity,
-        pendingOrders: data.pendingOrders,
-        additionalOrder: data.additionalOrder,
-        suggestedOrder: data.suggestedOrder
-      })
-      .where(eq(factoryInventory.id, existing[0].id));
+    // 构建更新对象，只更新提供的字段
+    const updateData: any = {};
+    if (data.quantity !== undefined) updateData.quantity = data.quantity;
+    if (data.pendingOrders !== undefined) updateData.pendingOrders = data.pendingOrders;
+    if (data.additionalOrder !== undefined) updateData.additionalOrder = data.additionalOrder;
+    if (data.suggestedOrder !== undefined) updateData.suggestedOrder = data.suggestedOrder;
+    if (data.sku !== undefined) updateData.sku = data.sku;
+    
+    if (Object.keys(updateData).length > 0) {
+      await db.update(factoryInventory)
+        .set(updateData)
+        .where(eq(factoryInventory.id, existing[0].id));
+    }
   } else {
     await db.insert(factoryInventory).values(data);
   }

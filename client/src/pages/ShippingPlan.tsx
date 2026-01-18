@@ -132,6 +132,14 @@ export default function ShippingPlan() {
     onError: (error) => toast.error(error.message),
   });
 
+  // 更新SKU日销的mutation
+  const updateSkuMutation = trpc.sku.update.useMutation({
+    onSuccess: () => {
+      utils.sku.list.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
   // 添加实际发货列 - 使用当前选中的类别
   const handleAddColumn = () => {
     if (!newColumn.date) {
@@ -174,7 +182,7 @@ export default function ShippingPlan() {
   };
 
   // 保存发货数据到数据库
-  const handleSave = async () => {
+    const handleSave = async () => {
     try {
       // 获取当前类别的列
       const categoryColumns = actualColumns.filter(c => c.category === currentCategory);
@@ -182,16 +190,27 @@ export default function ShippingPlan() {
       // 获取当前类别的SKU
       const categorySkus = skus?.filter(s => s.category === currentCategory && !s.isDiscontinued) || [];
       
-      // 先清空当前类别的旧数据（通过删除并重新创建）
-      // 注意：这里需要后端支持批量删除或清空特定类别的数据
-      // 暂时采用逐个保存的方式，后端会自动覆盖
+      // 获取已保存的数据
+      const savedShipments = savedActualShipments?.filter((s: any) => {
+        const sku = skus?.find(sk => sk.id === s.skuId);
+        return sku && sku.category === currentCategory;
+      }) || [];
       
       // 保存每个SKU在每列的发货数量
       const savePromises = [];
+      
       for (const sku of categorySkus) {
         for (const col of categoryColumns) {
           const quantity = actualQuantities[sku.id]?.[col.id] || 0;
+          
+          // 查找已保存的记录
+          const existingRecord = savedShipments.find((s: any) => 
+            s.skuId === sku.id && 
+            (typeof s.shipDate === 'string' ? s.shipDate : new Date(s.shipDate).toISOString().split('T')[0]) === col.date
+          );
+          
           if (quantity > 0) {
+            // 新增或更新记录
             savePromises.push(
               createActualShipmentMutation.mutateAsync({
                 brandName,
@@ -202,7 +221,27 @@ export default function ShippingPlan() {
                 notes: col.remark || undefined,
               })
             );
+          } else if (existingRecord && quantity === 0) {
+            // 删除记录（quantity为0且之前有数据）
+            savePromises.push(
+              deleteActualShipmentMutation.mutateAsync({ id: existingRecord.id })
+            );
           }
+        }
+      }
+      
+      // 删除被移除的列中的所有记录
+      for (const saved of savedShipments) {
+        const sku = skus?.find(s => s.id === saved.skuId);
+        if (!sku) continue;
+        
+        const shipDate = typeof saved.shipDate === 'string' ? saved.shipDate : new Date(saved.shipDate).toISOString().split('T')[0];
+        const columnExists = categoryColumns.some(c => c.date === shipDate);
+        
+        if (!columnExists) {
+          savePromises.push(
+            deleteActualShipmentMutation.mutateAsync({ id: saved.id })
+          );
         }
       }
       
@@ -311,7 +350,59 @@ export default function ShippingPlan() {
     return { predictions, finalStockoutDate: null };
   };
 
-  // 计算发货计划数据
+
+  // 计算缺货天数
+  const calculateStockoutDays = (sku: any) => {
+    const dailySales = parseFloat(sku.dailySales?.toString() || '0');
+    if (dailySales <= 0) return 0; // 无日销，无缺货风险
+    
+    const fbaStock = sku.fbaStock || 0;
+    const inTransitDetails = getInTransitDetails(sku.id);
+    
+    // 计算当前库存能支撑多少天
+    const daysOfStock = fbaStock / dailySales;
+    
+    // 如果库存充足（超过30天），则无缺货风险
+    if (daysOfStock >= 30) return 0;
+    
+    // 如果有在途货件，计算到第一批货到达的天数
+    if (inTransitDetails.length > 0) {
+      const sortedArrivals = [...inTransitDetails].sort((a: any, b: any) => {
+        if (!a?.expectedDate || !b?.expectedDate) return 0;
+        return new Date(a.expectedDate).getTime() - new Date(b.expectedDate).getTime();
+      });
+      
+      const firstArrivalDate = sortedArrivals[0]?.expectedDate;
+      if (firstArrivalDate) {
+        const today = new Date().toISOString().split('T')[0];
+        const daysToArrival = Math.ceil((new Date(firstArrivalDate).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+        
+        // 如果库存能支撑到货件到达，则无缺货风险
+        if (daysOfStock >= daysToArrival) return 0;
+        
+        // 计算缺货天数（从库存用完到货件到达）
+        return Math.max(0, daysToArrival - daysOfStock);
+      }
+    }
+    
+    // 无在途货件，返回库存用完的天数
+    return Math.max(0, 30 - daysOfStock);
+  };
+
+
+  
+  // 获取最近的缺货时间
+  const getNextStockoutDate = (sku: any) => {
+    const predictions = calculateStockoutPrediction(sku).predictions;
+    if (!predictions || predictions.length === 0) return null;
+    
+    // 找到第一个缺货事件
+    const stockoutEvent = predictions.find((p: any) => p.type === 'stockout');
+    return stockoutEvent ? stockoutEvent.date : null;
+  };
+
+
+    // 计算发货计划数据
   const calculatePlanData = (sku: any) => {
     const dailySales = parseFloat(sku.dailySales?.toString() || '0');
     const fbaStock = sku.fbaStock || 0;
@@ -660,6 +751,7 @@ export default function ShippingPlan() {
                   ) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
                 </button>
               </th>
+              <th>缺货天数</th>
               <th>
                 <button onClick={() => handleSort('stockoutDate')} className="flex items-center gap-1 hover:text-primary">
                   缺货预测
@@ -741,7 +833,27 @@ export default function ShippingPlan() {
                   return (
                     <tr key={sku.id} className={plan.alertLevel === 'urgent' ? 'bg-red-50' : plan.alertLevel === 'warning' ? 'bg-yellow-50' : ''}>
                       <td className="font-medium sticky left-0 bg-inherit">{sku.sku}</td>
-                      <td>{plan.dailySales}</td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <span>{plan.dailySales}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => {
+                              const newValue = prompt('修改日销量:', plan.dailySales.toString());
+                              if (newValue !== null && newValue.trim()) {
+                                updateSkuMutation.mutate({
+                                  id: sku.id,
+                                  dailySales: newValue,
+                                });
+                              }
+                            }}
+                          >
+                            编辑
+                          </Button>
+                        </div>
+                      </td>
                       <td>{plan.fbaStock}</td>
                       <td>
                         {plan.inTransitStock > 0 ? (
@@ -777,17 +889,30 @@ export default function ShippingPlan() {
                         )}
                       </td>
                       <td>
+                        {(() => {
+                          const stockoutDays = calculateStockoutDays(sku);
+                          return stockoutDays > 0 ? (
+                            <span className="text-red-600 font-medium">{stockoutDays}天</span>
+                          ) : (
+                            <span className="text-green-600">充足</span>
+                          );
+                        })()}
+                      </td>
+                      <td>
                         {stockoutPrediction.predictions.length > 0 ? (
                           <Collapsible
                             open={expandedStockout[sku.id]}
                             onOpenChange={(open) => setExpandedStockout({ ...expandedStockout, [sku.id]: open })}
                           >
                             <CollapsibleTrigger className="flex items-center gap-1 cursor-pointer">
-                              {stockoutPrediction.finalStockoutDate ? (
-                                <span className="text-red-600">{stockoutPrediction.finalStockoutDate}</span>
-                              ) : (
-                                <span className="text-green-600">无断货风险</span>
-                              )}
+                              {(() => {
+                                const nextStockout = getNextStockoutDate(sku);
+                                return nextStockout ? (
+                                  <span className="text-red-600">最近缺货: {nextStockout}</span>
+                                ) : (
+                                  <span className="text-green-600">无缺货风险</span>
+                                );
+                              })()}
                               {expandedStockout[sku.id] ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                             </CollapsibleTrigger>
                             <CollapsibleContent className="mt-2 space-y-1 max-w-[200px]">
