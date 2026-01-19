@@ -35,10 +35,16 @@ export async function getDb() {
         _db = drizzlePostgres(client) as any;
         console.log("[Database] Connected to PostgreSQL");
       } else {
-        // MySQL
-        const connection = await mysql.createConnection(dbUrl);
-        _db = drizzleMysql(connection) as any;
-        console.log("[Database] Connected to MySQL");
+        // MySQL - 使用连接池支持并发
+        const pool = await mysql.createPool({
+          uri: dbUrl,
+          waitForConnections: true,
+          connectionLimit: 10,
+          queueLimit: 0,
+          enableKeepAlive: true,
+        });
+        _db = drizzleMysql(pool) as any;
+        console.log("[Database] Connected to MySQL with connection pool");
       }
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
