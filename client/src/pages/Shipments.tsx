@@ -559,6 +559,7 @@ export default function Shipments() {
                                 onUndoArrival={(id) => undoArrivalMutation.mutate({ id })}
                                 onDelete={(id) => deleteMutation.mutate({ id })}
                                 getStatusBadge={getStatusBadge}
+                                modifiedFlags={modifiedFlags}
                               />
                             ))}
                           </CollapsibleContent>
@@ -634,6 +635,7 @@ export default function Shipments() {
                                 onUndoArrival={(id) => undoArrivalMutation.mutate({ id })}
                                 onDelete={(id) => deleteMutation.mutate({ id })}
                                 getStatusBadge={getStatusBadge}
+                                modifiedFlags={modifiedFlags}
                               />
                             ))}
                           </CollapsibleContent>
