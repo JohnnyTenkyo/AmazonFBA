@@ -749,10 +749,10 @@ function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoA
   );
 
   // 计算总数量
-  const totalQuantity = items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+  const totalQuantity = items && Array.isArray(items) ? items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0;
 
   // 判断是否已到达（包括 arrived, early, delayed）
-  const isArrived = ['arrived', 'early', 'delayed'].includes(shipment.status) && shipment.actualArrivalDate;
+  const isArrived = shipment && ['arrived', 'early', 'delayed'].includes(shipment.status) && shipment.actualArrivalDate;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
