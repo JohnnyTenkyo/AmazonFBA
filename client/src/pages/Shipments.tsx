@@ -789,9 +789,11 @@ function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoA
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="flex items-center gap-1 text-sm md:text-base font-semibold text-blue-600">
-                <Calendar className="w-3 h-3 md:w-4 md:h-4" />
-                预计到货: {formatDate(shipment.expectedArrivalDate)}
+              <div className="flex items-center gap-1 text-sm md:text-base font-semibold text-blue-600">
+                <p className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3 md:w-4 md:h-4" />
+                  预计到货: {formatDate(shipment.expectedArrivalDate)}
+                </p>
                 {/* 预计到货时间始终可修改 */}
                 <Button 
                   variant="ghost" 
@@ -806,7 +808,7 @@ function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoA
                     {modifiedFlags[shipment.id] === 'early' ? '预计提早到达' : '预计延迟到达'}
                   </Badge>
                 )}
-              </p>
+              </div>
               {shipment.actualArrivalDate && <p className="text-sm text-green-600 font-medium mt-1">实际到货: {formatDate(shipment.actualArrivalDate)}</p>}
             </div>
             {getStatusBadge(shipment.status)}

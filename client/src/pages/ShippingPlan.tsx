@@ -209,7 +209,18 @@ export default function ShippingPlan() {
   };
 
   // 保存发货数据到数据库
-    const handleSave = async () => {
+    
+  // 自动保存实际发货数据
+  useEffect(() => {
+    if (hasUnsavedChanges && actualColumns.length > 0) {
+      const timer = setTimeout(() => {
+        handleSave();
+      }, 2000); // 2秒后自动保存
+      return () => clearTimeout(timer);
+    }
+  }, [actualQuantities, hasUnsavedChanges]);
+
+  const handleSave = async () => {
     try {
       // 获取当前类别的列
       const categoryColumns = actualColumns.filter(c => c.category === currentCategory);
