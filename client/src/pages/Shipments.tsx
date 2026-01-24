@@ -873,7 +873,7 @@ function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoA
           <div className="mt-4 pt-4 border-t">
             {isLoading ? (
               <p className="text-sm text-muted-foreground">加载中...</p>
-            ) : items && items.length > 0 ? (
+            ) : Array.isArray(items) && items.length > 0 ? (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
@@ -882,12 +882,15 @@ function ShipmentCard({ shipment, onCopy, onMarkArrival, onEditExpected, onUndoA
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item, index) => (
-                    <tr key={index} className="border-b last:border-0 hover:bg-muted/50">
-                      <td className="p-2">{item.sku}</td>
-                      <td className="p-2 text-right">{item.quantity}</td>
-                    </tr>
-                  ))}
+                  {items.map((item, index) => {
+                    if (!item || typeof item !== 'object') return null;
+                    return (
+                      <tr key={index} className="border-b last:border-0 hover:bg-muted/50">
+                        <td className="p-2">{item.sku || '-'}</td>
+                        <td className="p-2 text-right">{item.quantity || 0}</td>
+                      </tr>
+                    );
+                  })}
                   <tr className="font-medium bg-muted/30">
                     <td className="p-2">合计</td>
                     <td className="p-2 text-right">{totalQuantity}</td>
