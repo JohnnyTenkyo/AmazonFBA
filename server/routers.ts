@@ -75,14 +75,6 @@ export const appRouter = router({
         password: z.string().min(6),
       }))
       .mutation(async ({ input }) => {
-        const userCount = await db.getUserCount();
-        if (userCount > 0) {
-          throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: '系统已完成初始化，请使用已有账户登录',
-          });
-        }
-
         const existing = await db.getUserByUsername(input.username);
         if (existing) {
           throw new TRPCError({ code: 'CONFLICT', message: '用户名已存在' });

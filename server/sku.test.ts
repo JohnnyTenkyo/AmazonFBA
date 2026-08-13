@@ -13,7 +13,7 @@ vi.mock("./db", () => ({
   batchUpsertSkus: vi.fn(),
   clearAllSkus: vi.fn(),
   getUserByUsername: vi.fn(),
-  getUserCount: vi.fn().mockResolvedValue(0),
+  createUserWithPassword: vi.fn(),
   hashPassword: vi.fn((p: string) => `hashed_${p}`),
 }));
 
@@ -216,16 +216,28 @@ describe("auth router", () => {
     expect(result).not.toHaveProperty("openId");
   });
 
-  it("should reject registration after the first owner account exists", async () => {
+  it("should allow a second brand to register after the first account exists", async () => {
     const db = await import("./db");
-    vi.mocked(db.getUserCount).mockResolvedValue(1);
+    vi.mocked(db.getUserByUsername).mockResolvedValue(null);
+    vi.mocked(db.createUserWithPassword).mockResolvedValue({
+      id: 2,
+      username: "BRAND-TWO",
+      brandName: "BRAND-TWO",
+    } as any);
 
     const ctx = createTestContext();
     const caller = appRouter.createCaller(ctx);
 
-    await expect(
-      caller.auth.register({ username: "another-user", password: "strong-password" })
-    ).rejects.toThrow("系统已完成初始化");
+    const result = await caller.auth.register({
+      username: "BRAND-TWO",
+      password: "strong-password",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      user: { id: 2, username: "BRAND-TWO", brandName: "BRAND-TWO" },
+    });
+    expect(db.createUserWithPassword).toHaveBeenCalledWith("BRAND-TWO", "strong-password");
   });
 
   it("should reject invalid credentials", async () => {
