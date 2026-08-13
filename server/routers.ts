@@ -14,7 +14,17 @@ export const appRouter = router({
   system: systemRouter,
   
   auth: router({
-    me: openProcedure.query(opts => opts.ctx.user),
+    me: openProcedure.query(({ ctx }) => {
+      if (!ctx.user) return null;
+
+      return {
+        id: ctx.user.id,
+        username: ctx.user.username,
+        brandName: ctx.user.brandName,
+        name: ctx.user.name,
+        role: ctx.user.role,
+      };
+    }),
     logout: openProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

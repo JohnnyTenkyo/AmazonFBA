@@ -204,6 +204,18 @@ describe("auth router", () => {
     );
   });
 
+  it("should not expose a password hash from the current-user endpoint", async () => {
+    const ctx = createTestContext();
+    (ctx.user as any).password = "sensitive-password-hash";
+    const caller = appRouter.createCaller(ctx);
+
+    const result = await caller.auth.me();
+
+    expect(result).toMatchObject({ id: 1, username: "ELYONA", brandName: "ELYONA" });
+    expect(result).not.toHaveProperty("password");
+    expect(result).not.toHaveProperty("openId");
+  });
+
   it("should reject registration after the first owner account exists", async () => {
     const db = await import("./db");
     vi.mocked(db.getUserCount).mockResolvedValue(1);
