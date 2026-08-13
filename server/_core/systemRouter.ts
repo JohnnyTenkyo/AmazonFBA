@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { notifyOwner } from "./notification";
-import { adminProcedure, publicProcedure, router } from "./trpc";
+import { adminProcedure, openProcedure, router } from "./trpc";
 
 export const systemRouter = router({
-  health: publicProcedure
+  health: openProcedure
     .input(
       z.object({
         timestamp: z.number().min(0, "timestamp cannot be negative"),

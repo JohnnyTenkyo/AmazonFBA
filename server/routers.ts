@@ -1,33 +1,33 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { openProcedure, publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import * as db from "./db";
-import { hashPassword, initDefaultUser } from "./db";
+import { hashPassword } from "./db";
+import { sdk } from "./_core/sdk";
 
-// 初始化默认用户
-initDefaultUser().catch(console.error);
+const LOCAL_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const appRouter = router({
   system: systemRouter,
   
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
+    me: openProcedure.query(opts => opts.ctx.user),
+    logout: openProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
     
     // 用户名密码登录
-    login: publicProcedure
+    login: openProcedure
       .input(z.object({
         username: z.string().min(1),
         password: z.string().min(1),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const user = await db.getUserByUsername(input.username);
         if (!user) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: '用户名或密码错误' });
@@ -37,6 +37,15 @@ export const appRouter = router({
         if (user.password !== hashedPassword) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: '用户名或密码错误' });
         }
+
+        const sessionToken = await sdk.createLocalSessionToken(user.openId, {
+          expiresInMs: LOCAL_SESSION_MAX_AGE_MS,
+        });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, {
+          ...cookieOptions,
+          maxAge: LOCAL_SESSION_MAX_AGE_MS,
+        });
         
         return {
           success: true,
@@ -50,12 +59,20 @@ export const appRouter = router({
       }),
     
     // 注册
-    register: publicProcedure
+    register: openProcedure
       .input(z.object({
         username: z.string().min(1),
         password: z.string().min(6),
       }))
       .mutation(async ({ input }) => {
+        const userCount = await db.getUserCount();
+        if (userCount > 0) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: '系统已完成初始化，请使用已有账户登录',
+          });
+        }
+
         const existing = await db.getUserByUsername(input.username);
         if (existing) {
           throw new TRPCError({ code: 'CONFLICT', message: '用户名已存在' });
@@ -73,7 +90,7 @@ export const appRouter = router({
       }),
     
     // 修改密码
-    changePassword: publicProcedure
+    changePassword: openProcedure
       .input(z.object({
         username: z.string().min(1),
         oldPassword: z.string().min(1),

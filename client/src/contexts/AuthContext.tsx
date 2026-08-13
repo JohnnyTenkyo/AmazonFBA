@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { trpc } from '@/lib/trpc';
 
 interface User {
   id: number;
@@ -18,34 +19,25 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = 'fba_auth_user';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   useEffect(() => {
-    // 从localStorage恢复登录状态
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsedUser = JSON.parse(stored);
-        setUser(parsedUser);
-      } catch (e) {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-      }
+    if (authQuery.isSuccess) {
+      setUser(authQuery.data ?? null);
     }
-    setLoading(false);
-  }, []);
+  }, [authQuery.data, authQuery.isSuccess]);
 
   const login = (userData: User) => {
     setUser(userData);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
   };
 
   const brandName = user?.brandName || '';
@@ -54,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user,
       isAuthenticated: !!user,
-      loading,
+      loading: authQuery.isLoading,
       login,
       logout,
       brandName,

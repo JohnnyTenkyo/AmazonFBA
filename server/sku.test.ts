@@ -13,18 +13,32 @@ vi.mock("./db", () => ({
   batchUpsertSkus: vi.fn(),
   clearAllSkus: vi.fn(),
   getUserByUsername: vi.fn(),
+  getUserCount: vi.fn().mockResolvedValue(0),
   hashPassword: vi.fn((p: string) => `hashed_${p}`),
-  initDefaultUser: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("./_core/sdk", () => ({
+  sdk: {
+    createLocalSessionToken: vi.fn().mockResolvedValue("test-local-session"),
+  },
 }));
 
 function createTestContext(): TrpcContext {
   return {
-    user: null,
+    user: {
+      id: 1,
+      openId: "local_test_1",
+      username: "ELYONA",
+      brandName: "ELYONA",
+      name: "ELYONA",
+      role: "admin",
+    } as TrpcContext["user"],
     req: {
       protocol: "https",
       headers: {},
     } as TrpcContext["req"],
     res: {
+      cookie: vi.fn(),
       clearCookie: vi.fn(),
     } as unknown as TrpcContext["res"],
   };
@@ -164,6 +178,7 @@ describe("auth router", () => {
     const db = await import("./db");
     const mockUser = {
       id: 1,
+      openId: "local_ELYONA_1",
       username: "ELYONA",
       password: "hashed_123456",
       brandName: "ELYONA",
@@ -182,6 +197,23 @@ describe("auth router", () => {
 
     expect(result.success).toBe(true);
     expect(result.user.username).toBe("ELYONA");
+    expect((ctx.res.cookie as any)).toHaveBeenCalledWith(
+      "app_session_id",
+      "test-local-session",
+      expect.objectContaining({ httpOnly: true, maxAge: expect.any(Number) })
+    );
+  });
+
+  it("should reject registration after the first owner account exists", async () => {
+    const db = await import("./db");
+    vi.mocked(db.getUserCount).mockResolvedValue(1);
+
+    const ctx = createTestContext();
+    const caller = appRouter.createCaller(ctx);
+
+    await expect(
+      caller.auth.register({ username: "another-user", password: "strong-password" })
+    ).rejects.toThrow("系统已完成初始化");
   });
 
   it("should reject invalid credentials", async () => {

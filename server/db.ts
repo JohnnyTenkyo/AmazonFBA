@@ -954,19 +954,12 @@ export async function upsertFactoryInventory(data: InsertFactoryInventory) {
   }
 }
 
-// 初始化默认用户
-export async function initDefaultUser() {
-  if (useLocal()) {
-    // 本地数据库在构造时已初始化默认用户
-    console.log('[Database] Using local memory database with default user ELYONA');
-    return;
-  }
+export async function getUserCount(): Promise<number> {
+  if (useLocal()) return localDb.getUserCount();
+
   const db = await getDb();
-  if (!db) return;
-  
-  const existing = await getUserByUsername('ELYONA');
-  if (!existing) {
-    await createUserWithPassword('ELYONA', '123456', 'ELYONA');
-    console.log('[Database] Default user ELYONA created');
-  }
+  if (!db) return 0;
+
+  const result = await db.select({ count: sql<number>`count(*)` }).from(users);
+  return Number(result[0]?.count ?? 0);
 }

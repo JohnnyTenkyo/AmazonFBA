@@ -24,6 +24,11 @@ export type SessionPayload = {
   name: string;
 };
 
+type LocalSessionPayload = {
+  openId: string;
+  local: true;
+};
+
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
 const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
 const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
@@ -232,6 +237,37 @@ class SDKServer {
     }
   }
 
+  async createLocalSessionToken(
+    openId: string,
+    options: { expiresInMs?: number } = {}
+  ): Promise<string> {
+    const issuedAt = Date.now();
+    const expiresInMs = options.expiresInMs ?? 7 * 24 * 60 * 60 * 1000;
+    const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
+
+    return new SignJWT({ openId, local: true })
+      .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+      .setExpirationTime(expirationSeconds)
+      .sign(this.getSessionSecret());
+  }
+
+  async verifyLocalSession(
+    cookieValue: string | undefined | null
+  ): Promise<LocalSessionPayload | null> {
+    if (!cookieValue) return null;
+
+    try {
+      const { payload } = await jwtVerify(cookieValue, this.getSessionSecret(), {
+        algorithms: ["HS256"],
+      });
+      const { openId, local } = payload as Record<string, unknown>;
+      if (!isNonEmptyString(openId) || local !== true) return null;
+      return { openId, local: true };
+    } catch {
+      return null;
+    }
+  }
+
   async getUserInfoWithJwt(
     jwtToken: string
   ): Promise<GetUserInfoWithJwtResponse> {
@@ -257,9 +293,22 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Request): Promise<User> {
-    // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
+
+    const localSession = await this.verifyLocalSession(sessionCookie);
+    if (localSession) {
+      const user = await db.getUserByOpenId(localSession.openId);
+      if (!user) throw ForbiddenError("Local session user not found");
+
+      await db.upsertUser({
+        openId: user.openId,
+        lastSignedIn: new Date(),
+      });
+      return user;
+    }
+
+    // Legacy Manus OAuth authentication flow.
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {

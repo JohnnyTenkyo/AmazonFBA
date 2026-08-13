@@ -8,7 +8,9 @@ const t = initTRPC.context<TrpcContext>().create({
 });
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+// Only authentication bootstrap endpoints should use this procedure. Business
+// procedures must require a verified server-side session.
+export const openProcedure = t.procedure;
 
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
@@ -26,6 +28,10 @@ const requireUser = t.middleware(async opts => {
 });
 
 export const protectedProcedure = t.procedure.use(requireUser);
+
+// Keep the existing business-route imports safe by default while gradually
+// migrating individual unauthenticated routes to openProcedure.
+export const publicProcedure = protectedProcedure;
 
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {

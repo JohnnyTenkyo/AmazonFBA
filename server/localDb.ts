@@ -172,11 +172,6 @@ class LocalDatabase {
   private nextActualShipmentId = 1;
   private nextFactoryInventoryId = 1;
 
-  constructor() {
-    // 初始化默认用户
-    this.createUser('ELYONA', '123456', 'ELYONA');
-  }
-
   // ==================== 用户相关 ====================
   createUser(username: string, password: string, brandName?: string): LocalUser {
     const user: LocalUser = {
@@ -203,6 +198,10 @@ class LocalDatabase {
 
   getUserByOpenId(openId: string): LocalUser | undefined {
     return this.users.find(u => u.openId === openId);
+  }
+
+  getUserCount(): number {
+    return this.users.length;
   }
 
   updateUserPassword(userId: number, newPassword: string): void {

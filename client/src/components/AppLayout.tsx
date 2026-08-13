@@ -42,6 +42,7 @@ import {
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Redirect } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { trpc } from "@/lib/trpc";
 
 // 主导航菜单
 const mainMenuItems = [
@@ -127,6 +128,12 @@ function AppLayoutContent({
   const allMenuItems = [...mainMenuItems, ...configMenuItems];
   const activeMenuItem = allMenuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSettled: () => {
+      logout();
+      setLocation('/login');
+    },
+  });
 
   useEffect(() => {
     if (isCollapsed) {
@@ -165,8 +172,7 @@ function AppLayoutContent({
   }, [isResizing, setSidebarWidth]);
 
   const handleLogout = () => {
-    logout();
-    setLocation('/login');
+    logoutMutation.mutate();
   };
 
   return (
