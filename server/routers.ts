@@ -10,6 +10,43 @@ import { sdk } from "./_core/sdk";
 
 const LOCAL_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+const brandProcedure = protectedProcedure.use(async ({ ctx, getRawInput, next }) => {
+  const rawInput = await getRawInput();
+  const brandName = rawInput && typeof rawInput === "object" && "brandName" in rawInput
+    ? (rawInput as { brandName?: unknown }).brandName
+    : undefined;
+
+  if (typeof brandName === "string" && brandName !== ctx.user.brandName) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "无权访问其他品牌的数据" });
+  }
+
+  return next({ ctx });
+});
+
+async function requireOwnedSku(ctx: any, skuId: number) {
+  const sku = await db.getSkuById(skuId);
+  if (!sku || sku.brandName !== ctx.user.brandName) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "SKU不存在或无权访问" });
+  }
+  return sku;
+}
+
+async function requireOwnedShipment(ctx: any, shipmentId: number) {
+  const shipment = await db.getShipmentById(shipmentId);
+  if (!shipment || shipment.brandName !== ctx.user.brandName) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "货件不存在或无权访问" });
+  }
+  return shipment;
+}
+
+async function requireOwnedPromotion(ctx: any, promotionId: number) {
+  const promotion = await db.getPromotionById(promotionId);
+  if (!promotion || promotion.brandName !== ctx.user.brandName) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "促销项目不存在或无权访问" });
+  }
+  return promotion;
+}
+
 export const appRouter = router({
   system: systemRouter,
   
@@ -116,19 +153,19 @@ export const appRouter = router({
 
   // SKU管理
   sku: router({
-    list: publicProcedure
+    list: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         return db.getSkusByBrand(input.brandName);
       }),
     
-    get: publicProcedure
+    get: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return db.getSkuById(input.id);
+      .query(async ({ input, ctx }) => {
+        return requireOwnedSku(ctx, input.id);
       }),
     
-    create: publicProcedure
+    create: brandProcedure
       .input(z.object({
         sku: z.string().min(1),
         category: z.enum(['standard', 'oversized']),
@@ -146,7 +183,7 @@ export const appRouter = router({
         return { success: true };
       }),
     
-    update: publicProcedure
+    update: protectedProcedure
       .input(z.object({
         id: z.number(),
         sku: z.string().optional(),
@@ -157,27 +194,29 @@ export const appRouter = router({
         fbaStock: z.number().optional(),
         inTransitStock: z.number().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
+        await requireOwnedSku(ctx, id);
         await db.updateSku(id, data);
         return { success: true };
       }),
     
-    delete: publicProcedure
+    delete: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireOwnedSku(ctx, input.id);
         await db.deleteSku(input.id);
         return { success: true };
       }),
     
-    clearAll: publicProcedure
+    clearAll: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .mutation(async ({ input }) => {
         await db.clearAllSkus(input.brandName);
         return { success: true };
       }),
     
-    batchImport: publicProcedure
+    batchImport: brandProcedure
       .input(z.object({
         brandName: z.string(),
         items: z.array(z.object({
@@ -197,7 +236,7 @@ export const appRouter = router({
         return { success: true, count: items.length };
       }),
     
-    batchUpdate: publicProcedure
+    batchUpdate: protectedProcedure
       .input(z.object({
         ids: z.array(z.number()),
         updates: z.object({
@@ -205,7 +244,8 @@ export const appRouter = router({
           isDiscontinued: z.boolean().optional(),
         })
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await Promise.all(input.ids.map(id => requireOwnedSku(ctx, id)));
         await db.batchUpdateSkus(input.ids, input.updates);
         return { success: true, count: input.ids.length };
       }),
@@ -213,13 +253,13 @@ export const appRouter = router({
 
   // FBA库存同步
   sync: router({
-    history: publicProcedure
+    history: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         return db.getSyncHistoryByBrand(input.brandName);
       }),
     
-    upload: publicProcedure
+    upload: brandProcedure
       .input(z.object({
         brandName: z.string(),
         fileName: z.string(),
@@ -275,7 +315,7 @@ export const appRouter = router({
 
   // 运输配置
   transport: router({
-    get: publicProcedure
+    get: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         const config = await db.getTransportConfig(input.brandName);
@@ -291,7 +331,7 @@ export const appRouter = router({
         return config;
       }),
     
-    update: publicProcedure
+    update: brandProcedure
       .input(z.object({
         brandName: z.string(),
         standardShippingDays: z.number().optional(),
@@ -308,23 +348,22 @@ export const appRouter = router({
 
   // 货件管理
   shipment: router({
-    list: publicProcedure
+    list: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         return db.getShipmentsByBrand(input.brandName);
       }),
     
-    get: publicProcedure
+    get: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        const shipment = await db.getShipmentById(input.id);
-        if (!shipment) return null;
+      .query(async ({ input, ctx }) => {
+        const shipment = await requireOwnedShipment(ctx, input.id);
         
         const items = await db.getShipmentItems(input.id);
         return { ...shipment, items };
       }),
     
-    create: publicProcedure
+    create: brandProcedure
       .input(z.object({
         brandName: z.string(),
         trackingNumber: z.string(),
@@ -338,8 +377,9 @@ export const appRouter = router({
           quantity: z.number(),
         }))
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { items, ...shipmentData } = input;
+        await Promise.all(items.map(item => requireOwnedSku(ctx, item.skuId)));
         const result = await db.createShipment(shipmentData as any);
         const shipmentId = (result as any)[0]?.insertId;
         
@@ -355,27 +395,29 @@ export const appRouter = router({
         return { success: true, shipmentId };
       }),
     
-    update: publicProcedure
+    update: protectedProcedure
       .input(z.object({
         id: z.number(),
         status: z.enum(['shipping', 'arrived', 'early', 'delayed']).optional(),
         actualArrivalDate: z.string().optional(),
         expectedArrivalDate: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
+        await requireOwnedShipment(ctx, id);
         await db.updateShipment(id, data as any);
         return { success: true };
       }),
     
-    delete: publicProcedure
+    delete: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireOwnedShipment(ctx, input.id);
         await db.deleteShipment(input.id);
         return { success: true };
       }),
     
-    clearAll: publicProcedure
+    clearAll: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .mutation(async ({ input }) => {
         await db.clearAllShipments(input.brandName);
@@ -383,16 +425,13 @@ export const appRouter = router({
       }),
     
     // 标记到达
-    markArrived: publicProcedure
+    markArrived: protectedProcedure
       .input(z.object({
         id: z.number(),
         actualArrivalDate: z.string(),
       }))
-      .mutation(async ({ input }) => {
-        const shipment = await db.getShipmentById(input.id);
-        if (!shipment) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: '货件不存在' });
-        }
+      .mutation(async ({ input, ctx }) => {
+        const shipment = await requireOwnedShipment(ctx, input.id);
         
         // 判断是提前还是延迟到达
         let status: 'arrived' | 'early' | 'delayed' = 'arrived';
@@ -427,7 +466,7 @@ export const appRouter = router({
       }),
     
     // 批量导入货件
-    batchImport: publicProcedure
+    batchImport: brandProcedure
       .input(z.object({
         brandName: z.string(),
         items: z.array(z.object({
@@ -509,37 +548,36 @@ export const appRouter = router({
       }),
     
     // 按SKU获取在途货件
-    getBySkuId: publicProcedure
+    getBySkuId: protectedProcedure
       .input(z.object({ skuId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await requireOwnedSku(ctx, input.skuId);
         return db.getShipmentItemsBySku(input.skuId);
       }),
     
     // 获取货件明细
-    getItems: publicProcedure
+    getItems: protectedProcedure
       .input(z.object({ shipmentId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await requireOwnedShipment(ctx, input.shipmentId);
         return db.getShipmentItems(input.shipmentId);
       }),
     
     // 获取所有货件明细（用于发货计划页面）
-    listAllItems: publicProcedure
+    listAllItems: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         return db.getAllShipmentItems(input.brandName);
       }),
     
     // 更新预计到货日期 - 仅更新日期，不改变状态（除非是运输中状态）
-    updateExpectedDate: publicProcedure
+    updateExpectedDate: protectedProcedure
       .input(z.object({
         id: z.number(),
         expectedArrivalDate: z.string(),
       }))
-      .mutation(async ({ input }) => {
-        const shipment = await db.getShipmentById(input.id);
-        if (!shipment) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: '货件不存在' });
-        }
+      .mutation(async ({ input, ctx }) => {
+        const shipment = await requireOwnedShipment(ctx, input.id);
         
         // 比较原始预计到达日期和新日期
         const originalDate = new Date(shipment.expectedArrivalDate as any);
@@ -562,15 +600,12 @@ export const appRouter = router({
       }),
     
     // 撤销到达状态
-    undoArrival: publicProcedure
+    undoArrival: protectedProcedure
       .input(z.object({
         id: z.number(),
       }))
-      .mutation(async ({ input }) => {
-        const shipment = await db.getShipmentById(input.id);
-        if (!shipment) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: '货件不存在' });
-        }
+      .mutation(async ({ input, ctx }) => {
+        const shipment = await requireOwnedShipment(ctx, input.id);
         
         // 检查是否已到达
         if (!['arrived', 'early', 'delayed'].includes(shipment.status as string) || !shipment.actualArrivalDate) {
@@ -601,23 +636,22 @@ export const appRouter = router({
 
   // 促销管理
   promotion: router({
-    list: publicProcedure
+    list: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         return db.getPromotionsByBrand(input.brandName);
       }),
     
-    get: publicProcedure
+    get: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        const promotion = await db.getPromotionById(input.id);
-        if (!promotion) return null;
+      .query(async ({ input, ctx }) => {
+        const promotion = await requireOwnedPromotion(ctx, input.id);
         
         const sales = await db.getPromotionSales(input.id);
         return { ...promotion, sales };
       }),
     
-    create: publicProcedure
+    create: brandProcedure
       .input(z.object({
         brandName: z.string(),
         name: z.string(),
@@ -631,7 +665,7 @@ export const appRouter = router({
         return { success: true };
       }),
     
-    update: publicProcedure
+    update: protectedProcedure
       .input(z.object({
         id: z.number(),
         name: z.string().optional(),
@@ -641,28 +675,31 @@ export const appRouter = router({
         thisYearEndDate: z.string().optional(),
         isActive: z.boolean().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
+        await requireOwnedPromotion(ctx, id);
         await db.updatePromotion(id, data as any);
         return { success: true };
       }),
     
-    delete: publicProcedure
+    delete: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireOwnedPromotion(ctx, input.id);
         await db.deletePromotion(input.id);
         return { success: true };
       }),
     
     // 获取促销项目的历史销量数据
-    getSales: publicProcedure
+    getSales: protectedProcedure
       .input(z.object({ promotionId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await requireOwnedPromotion(ctx, input.promotionId);
         return db.getPromotionSales(input.promotionId);
       }),
     
     // 导入历史销量
-    importSales: publicProcedure
+    importSales: brandProcedure
       .input(z.object({
         promotionId: z.number(),
         brandName: z.string(),
@@ -671,7 +708,8 @@ export const appRouter = router({
           sales: z.number(),
         }))
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireOwnedPromotion(ctx, input.promotionId);
         let count = 0;
         for (const item of input.items) {
           // 通过SKU查找对应的skuId
@@ -692,14 +730,14 @@ export const appRouter = router({
 
   // 春节配置
   springFestival: router({
-    get: publicProcedure
+    get: brandProcedure
       .input(z.object({ brandName: z.string(), year: z.number() }))
       .query(async ({ input }) => {
         const config = await db.getSpringFestivalConfig(input.brandName, input.year);
         return config || null;
       }),
     
-    update: publicProcedure
+    update: brandProcedure
       .input(z.object({
         brandName: z.string(),
         year: z.number(),
@@ -721,7 +759,7 @@ export const appRouter = router({
         return { success: true };
       }),
     
-    clear: publicProcedure
+    clear: brandProcedure
       .input(z.object({
         brandName: z.string(),
         year: z.number(),
@@ -734,21 +772,22 @@ export const appRouter = router({
 
   // 实际发货记录
   actualShipment: router({
-    list: publicProcedure
+    list: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         return db.getActualShipmentsByBrand(input.brandName);
       }),
     
-    getBySku: publicProcedure
+    getBySku: brandProcedure
       .input(z.object({ skuId: z.number(), brandName: z.string() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await requireOwnedSku(ctx, input.skuId);
         // 返回该SKU的所有实际发货记录
         const allRecords = await db.getActualShipmentsByBrand(input.brandName);
         return allRecords.filter((r: any) => r.skuId === input.skuId);
       }),
     
-    create: publicProcedure
+    create: brandProcedure
       .input(z.object({
         brandName: z.string(),
         skuId: z.number(),
@@ -757,14 +796,19 @@ export const appRouter = router({
         quantity: z.number(),
         notes: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireOwnedSku(ctx, input.skuId);
         await db.createActualShipment(input as any);
         return { success: true };
       }),
     
-    delete: publicProcedure
+    delete: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const record = await db.getActualShipmentById(input.id);
+        if (!record || record.brandName !== ctx.user.brandName) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "实际发货记录不存在或无权访问" });
+        }
         await db.deleteActualShipment(input.id);
         return { success: true };
       }),
@@ -772,13 +816,13 @@ export const appRouter = router({
 
   // 工厂库存
   factoryInventory: router({
-    list: publicProcedure
+    list: brandProcedure
       .input(z.object({ brandName: z.string(), month: z.string().optional() }))
       .query(async ({ input }) => {
         return db.getFactoryInventoryByBrand(input.brandName, input.month);
       }),
     
-    upsert: publicProcedure
+    upsert: brandProcedure
       .input(z.object({
         brandName: z.string(),
         skuId: z.number(),
@@ -789,12 +833,13 @@ export const appRouter = router({
         additionalOrder: z.number().optional(),
         suggestedOrder: z.number().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await requireOwnedSku(ctx, input.skuId);
         await db.upsertFactoryInventory(input as any);
         return { success: true };
       }),
     
-    batchImport: publicProcedure
+    batchImport: brandProcedure
       .input(z.object({
         brandName: z.string(),
         month: z.string(),
@@ -805,7 +850,8 @@ export const appRouter = router({
           pendingOrders: z.number().optional(),
         }))
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await Promise.all(input.items.map((item) => requireOwnedSku(ctx, item.skuId)));
         for (const item of input.items) {
           await db.upsertFactoryInventory({
             brandName: input.brandName,
@@ -819,7 +865,7 @@ export const appRouter = router({
 
   // 概览数据
   dashboard: router({
-    summary: publicProcedure
+    summary: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         const allSkus = await db.getSkusByBrand(input.brandName);
@@ -878,7 +924,7 @@ export const appRouter = router({
     
     
     // 延迟货件
-    delayedShipments: publicProcedure
+    delayedShipments: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         const shipments = await db.getShipmentsByBrand(input.brandName);
@@ -909,7 +955,7 @@ export const appRouter = router({
       }),
 
         // 库存预警列表
-    alerts: publicProcedure
+    alerts: brandProcedure
       .input(z.object({ brandName: z.string() }))
       .query(async ({ input }) => {
         const allSkus = await db.getSkusByBrand(input.brandName);

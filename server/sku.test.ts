@@ -7,6 +7,9 @@ vi.mock("./db", () => ({
   getSkusByBrand: vi.fn(),
   getSkuById: vi.fn(),
   getSkuBySku: vi.fn(),
+  getShipmentById: vi.fn(),
+  getPromotionById: vi.fn(),
+  getActualShipmentById: vi.fn(),
   createSku: vi.fn(),
   updateSku: vi.fn(),
   deleteSku: vi.fn(),
@@ -47,6 +50,9 @@ function createTestContext(): TrpcContext {
 describe("sku router", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    void import("./db").then((db) => {
+      vi.mocked(db.getSkuById).mockResolvedValue({ id: 1, brandName: "ELYONA", sku: "SKU001" } as any);
+    });
   });
 
   it("should list SKUs for a brand", async () => {
@@ -166,6 +172,33 @@ describe("sku router", () => {
 
     expect(db.clearAllSkus).toHaveBeenCalledWith("ELYONA");
     expect(result).toEqual({ success: true });
+  });
+
+  it("should reject another brand from reading ELYONA SKUs", async () => {
+    const otherBrandContext = createTestContext();
+    (otherBrandContext.user as any).id = 2;
+    (otherBrandContext.user as any).username = "BRAND-TWO";
+    (otherBrandContext.user as any).brandName = "BRAND-TWO";
+    const caller = appRouter.createCaller(otherBrandContext);
+
+    await expect(caller.sku.list({ brandName: "ELYONA" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("should reject another brand from updating an ELYONA SKU", async () => {
+    const db = await import("./db");
+    vi.mocked(db.getSkuById).mockResolvedValue({ id: 1, brandName: "ELYONA", sku: "SKU001" } as any);
+    const otherBrandContext = createTestContext();
+    (otherBrandContext.user as any).id = 2;
+    (otherBrandContext.user as any).username = "BRAND-TWO";
+    (otherBrandContext.user as any).brandName = "BRAND-TWO";
+    const caller = appRouter.createCaller(otherBrandContext);
+
+    await expect(caller.sku.update({ id: 1, dailySales: "99" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+    expect(db.updateSku).not.toHaveBeenCalled();
   });
 });
 

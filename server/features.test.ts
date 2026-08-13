@@ -22,6 +22,11 @@ vi.mock("./db", () => ({
   getShipmentItems: vi.fn().mockResolvedValue([
     { id: 1, shipmentId: 1, sku: "TEST-SKU-001", quantity: 50 },
   ]),
+  getShipmentById: vi.fn().mockResolvedValue({
+    id: 1,
+    trackingNumber: "TRK001",
+    brandName: "ELYONA",
+  }),
   getPromotionsByBrand: vi.fn().mockResolvedValue([]),
   getSpringFestivalConfig: vi.fn().mockResolvedValue(null),
   upsertUser: vi.fn().mockResolvedValue(undefined),
@@ -36,6 +41,8 @@ function createTestContext(): TrpcContext {
   const user: AuthenticatedUser = {
     id: 1,
     openId: "test-user",
+    username: "ELYONA",
+    brandName: "ELYONA",
     email: "test@example.com",
     name: "Test User",
     loginMethod: "password",

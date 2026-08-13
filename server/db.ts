@@ -899,6 +899,17 @@ export async function deleteActualShipment(id: number) {
   await db.delete(actualShipments).where(eq(actualShipments.id, id));
 }
 
+export async function getActualShipmentById(id: number) {
+  if (useLocal()) return null;
+  const db = await getDb();
+  if (!db) return null;
+
+  const records = await db.select().from(actualShipments)
+    .where(eq(actualShipments.id, id))
+    .limit(1);
+  return records[0] ?? null;
+}
+
 // ==================== 工厂库存 ====================
 export async function getFactoryInventoryByBrand(brandName: string, month?: string) {
   if (useLocal()) {
