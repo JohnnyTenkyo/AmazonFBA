@@ -21,23 +21,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [hasHydratedSession, setHasHydratedSession] = useState(false);
   const authQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (authQuery.isSuccess) {
+    if (!hasHydratedSession && !authQuery.isLoading) {
       setUser(authQuery.data ?? null);
+      setHasHydratedSession(true);
     }
-  }, [authQuery.data, authQuery.isSuccess]);
+  }, [authQuery.data, authQuery.isLoading, hasHydratedSession]);
 
   const login = (userData: User) => {
     setUser(userData);
+    setHasHydratedSession(true);
   };
 
   const logout = () => {
     setUser(null);
+    setHasHydratedSession(true);
   };
 
   const brandName = user?.brandName || '';
@@ -46,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user,
       isAuthenticated: !!user,
-      loading: authQuery.isLoading,
+      loading: !hasHydratedSession,
       login,
       logout,
       brandName,
