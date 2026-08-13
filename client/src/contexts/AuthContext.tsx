@@ -28,11 +28,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (!hasHydratedSession && !authQuery.isLoading) {
+    if (!hasHydratedSession && (authQuery.isSuccess || authQuery.isError)) {
       setUser(authQuery.data ?? null);
       setHasHydratedSession(true);
     }
-  }, [authQuery.data, authQuery.isLoading, hasHydratedSession]);
+  }, [authQuery.data, authQuery.isError, authQuery.isSuccess, hasHydratedSession]);
 
   const login = (userData: User) => {
     setUser(userData);
